@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GharTak Grocery</title>
+<style>
+body{font-family:Arial;margin:0;background:#f1f1f1}
+header{background:green;color:white;padding:15px;text-align:center;font-size:22px;position:sticky;top:0;z-index:1000}
+.navbar{display:flex;justify-content:space-between;align-items:center;padding:10px 20px;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,0.1)}
+.navbar input{width:50%;padding:7px;border-radius:5px;border:1px solid #ccc}
+.banner{position:relative;overflow:hidden;margin:10px 0;height:300px;border-radius:10px}
+.banner img{width:100%;height:300px;position:absolute;top:0;left:0;opacity:0;transition:opacity 1s ease-in-out;}
+.banner .active{opacity:1}
+.banner .arrow{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.3);color:white;padding:10px;border:none;border-radius:50%;cursor:pointer;font-size:18px;}
+.banner .arrow.left{left:10px}
+.banner .arrow.right{right:10px}
+.category-menu{display:flex;overflow-x:auto;padding:10px 0;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,0.1)}
+.category-menu div{padding:8px 15px;margin:0 5px;background:green;color:white;border-radius:5px;cursor:pointer;white-space:nowrap}
+.container{display:flex;flex-wrap:wrap;justify-content:center;padding:10px}
+.product{background:white;width:180px;margin:8px;padding:10px;border-radius:10px;text-align:center;box-shadow:0 2px 5px rgba(0,0,0,0.1);transition:transform 0.2s}
+.product:hover{transform:scale(1.05)}
+select.unit{width:100%;padding:5px;margin-top:5px;border-radius:5px}
+button{background:green;color:white;border:none;padding:7px;border-radius:5px;cursor:pointer;margin-top:5px;width:100%}
+#cart{background:white;margin:10px;padding:10px;border-radius:10px;position:fixed;right:10px;top:100px;width:300px;max-height:80vh;overflow:auto;box-shadow:0 2px 10px rgba(0,0,0,0.2)}
+.footer{background:#222;color:white;text-align:center;padding:10px;margin-top:10px}
+</style>
+</head>
+<body>
+
+<header>🛒 GharTak Grocery</header>
+<div class="navbar">
+<input type="text" placeholder="Search products..." onkeyup="searchProduct()" id="search">
+<div>Cart: <span id="cartCount">0</span></div>
+</div>
+
+<div class="banner" id="banner">
+<img src="banner1.png" alt="Banner 1" class="active">
+<img src="banner2.png" alt="Banner 2">
+<img src="banner3.png" alt="Banner 3">
+<button class="arrow left" onclick="prevBanner()">❮</button>
+<button class="arrow right" onclick="nextBanner()">❯</button>
+</div>
+
+<div class="category-menu" id="categories"></div>
+
+<h3 style="text-align:center;">⭐ Best Sellers</h3>
+<div class="container" id="bestSellers"></div>
+
+<h3 style="text-align:center;">All Products</h3>
+<div class="container" id="products"></div>
+
+<div id="cart">
+<h3>🧾 Cart</h3>
+<ul id="cartItems"></ul>
+<h3>Total ₹ <span id="total">0</span></h3>
+<h4 id="deliveryMsg"></h4>
+<a href="upi://pay?pa=9771622955@ybl&pn=GharTak Grocery"><button>Pay via UPI</button></a>
+<button onclick="orderNow()">Order on WhatsApp</button>
+</div>
+
+<div class="footer">
+📍 Delivery: Patna & Darbhanga<br>
+📞 9771622955
+</div>
+
+<script>
+let productData=[];
+for(let i=1;i<=1000;i++){
+  productData.push({name:Product ${i},price:Math.floor(Math.random()*500)+10,cat:Category ${i%10},bestSeller:i<=20});
+}
+
+let cartTotal=0,cartData="",cartCount=0;
+
+// Banner slideshow
+let banners=document.querySelectorAll('#banner img');
+let currentBanner=0;
+function showBanner(index){
+  banners.forEach((b,i)=>b.classList.remove('active'));
+  banners[index].classList.add('active');
+}
+function nextBanner(){
+  currentBanner=(currentBanner+1)%banners.length;
+  showBanner(currentBanner);
+}
+function prevBanner(){
+  currentBanner=(currentBanner-1+banners.length)%banners.length;
+  showBanner(currentBanner);
+}
+setInterval(()=>{nextBanner();},5000);
+
+function loadCategories(){
+  let cats=new Set(productData.map(p=>p.cat));
+  let html='';
+  cats.forEach(c=>{html+=<div onclick="filterCategory('${c}')">${c}</div>});
+  document.getElementById('categories').innerHTML=html;
+}
+
+function loadProducts(products,id){
+  let html='';
+  products.forEach(p=>{
+    html+=`<div class="product">
+      <h4>${p.name}</h4>
+      <p>₹${p.price}</p>
+      <select class="unit">
+        <option value="1" data-unit="kg">1 Kg</option>
+        <option value="0.5" data-unit="kg">0.5 Kg</option>
+        <option value="0.25" data-unit="kg">250 g</option>
+        <option value="0.1" data-unit="kg">100 g</option>
+        <option value="1" data-unit="piece">1 Piece</option>
+        <option value="2" data-unit="piece">2 Pieces</option>
+        <option value="1" data-unit="liter">1 Liter</option>
+        <option value="0.5" data-unit="liter">0.5 Liter</option>
+      </select>
+      <button onclick="addToCart('${p.name}',${p.price})">Add</button>
+    </div>`;
+  });
+  document.getElementById(id).innerHTML=html;
+}
+
+function filterCategory(cat){
+  let filtered=productData.filter(p=>p.cat===cat);
+  loadProducts(filtered,'products');
+}
+
+function addToCart(name,price){
+  let productDiv=event.target.parentNode;
+  let select=productDiv.querySelector('.unit');
+  let qty=parseFloat(select.value);
+  let unit=select.options[select.selectedIndex].dataset.unit;
+  let finalPrice=price*qty;
+  cartTotal+=finalPrice;
+  let displayQty=unit==='kg'?(qty*1000)+' g':qty+' '+unit;
+  let li=document.createElement('li');
+  li.innerText=${name} - ${displayQty} - ₹${finalPrice.toFixed(2)};
+  document.getElementById('cartItems').appendChild(li);
+  cartData+=${name} ${displayQty} ₹${finalPrice.toFixed(2)}%0A;
+  cartCount++;
+  document.getElementById('cartCount').innerText=cartCount;
+  document.getElementById('total').innerText=cartTotal.toFixed(2);
+  checkDelivery();
+}
+
+function checkDelivery(){
+  let deliveryMsg=document.getElementById('deliveryMsg');
+  if(cartTotal>=249){deliveryMsg.innerHTML='🎉 You got FREE Delivery';deliveryMsg.style.color='green';}
+  else{deliveryMsg.innerHTML='Add ₹'+(249-cartTotal).toFixed(2)+' more for FREE delivery';deliveryMsg.style.color='red';}
+}
+
+function orderNow(){
+  let msg='Order Details:%0A'+cartData+'Total ₹'+cartTotal.toFixed(2)+'%0AFree Delivery above ₹249';
+  window.open('https://wa.me/919771622955?text='+msg);
+}
+
+function searchProduct(){
+  let input=document.getElementById('search').value.toLowerCase();
+  let filtered=productData.filter(p=>p.name.toLowerCase().includes(input));
+  loadProducts(filtered,'products');
+}
+
+// Initial Load
+loadCategories();
+loadProducts(productData.filter(p=>p.bestSeller),'bestSellers');
+loadProducts(productData,'products');
+</script>
+
+</body>
+</html>
